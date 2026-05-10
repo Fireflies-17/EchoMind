@@ -29,7 +29,7 @@ PowerShell 中如果 `ffmpeg` 不在 PATH，可在运行时显式传入：
 | 本地视频/音频输入 | `src/video_kb/cli.py`、`src/video_kb/paths.py` | `data/runs/<run_id>/` |
 | 音频提取 | `src/video_kb/audio.py` | 16kHz 单声道 WAV |
 | VAD 与中文 ASR | `src/video_kb/asr.py` | `*_vad.json`、`*_asr.json` |
-| 说话人分离 | `src/video_kb/diarization.py` | `*_speakers_raw.json`、`*_speakers.json` |
+| 说话人分离 | `src/video_kb/diarization.py` | pyannote 或 3D-Speaker 输出的 `*_speakers_raw.json` |
 | 说话人清洗 | `src/video_kb/diarization.py` | cleaned speaker segments |
 | ASR 与 speaker 合并 | `src/video_kb/timeline.py` | `*_timeline.json` |
 | 摘要、章节、知识点、待办 | `src/video_kb/summarize.py` | `*_summary.json` |
@@ -50,7 +50,8 @@ python -m video_kb.cli asr `
 
 python -m video_kb.cli diarize `
   .\data\runs\demo\audio\demo.wav `
-  .\data\runs\demo\diarization\demo_speakers_raw.json
+  .\data\runs\demo\diarization\demo_speakers_raw.json `
+  --backend pyannote
 
 python -m video_kb.cli clean-diarization `
   .\data\runs\demo\diarization\demo_speakers_raw.json `

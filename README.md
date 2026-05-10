@@ -76,6 +76,7 @@ DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 
 - [当前能力与使用说明](docs/current_capabilities.md)
 - [报告模式](docs/report_modes.md)
+- [说话人分离后端](docs/diarization_backends.md)
 - [说话人清洗说明](docs/diarization_cleaning.md)
 - [方法论审查记录](docs/methodology_review.md)
 - [项目结构与提交规则](docs/project_structure.md)

@@ -31,3 +31,5 @@ data/summary/
 # Local model or vector store caches
 models/
 .cache/
+external/
+third_party/

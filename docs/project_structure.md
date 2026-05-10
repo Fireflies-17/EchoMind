@@ -19,6 +19,7 @@
 │   ├── archive/
 │   │   └── original_methodology.md
 │   ├── current_capabilities.md
+│   ├── diarization_backends.md
 │   ├── diarization_cleaning.md
 │   ├── methodology_review.md
 │   ├── project_structure.md
@@ -54,7 +55,7 @@
 
 - `src/video_kb/`：核心 Python 包。
 - `tests/`：轻量单元测试和 fixture。
-- `docs/`：文档索引、当前能力、报告模式、说话人清洗、方法论评审、项目结构说明。
+- `docs/`：文档索引、当前能力、报告模式、说话人分离后端、说话人清洗、方法论评审、项目结构说明。
 - `scripts/`：PowerShell 和 Bash 运行脚本。
 - `pyproject.toml`、`requirements.txt`：安装和依赖配置。
 - `.env.example`：环境变量模板，不包含真实 token。

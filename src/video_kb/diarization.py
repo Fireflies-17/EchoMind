@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -245,7 +247,7 @@ def clean_diarization(
     return cleaned
 
 
-def diarize(
+def _diarize_pyannote(
     audio_path: str | Path,
     output_path: str | Path,
     token: str | None = None,
@@ -288,6 +290,7 @@ def diarize(
         )
     payload = {
         "skipped": False,
+        "backend": "pyannote",
         "source_audio": str(audio_path),
         "model": model_name,
         "segments": segments,
@@ -295,3 +298,247 @@ def diarize(
     }
     save_json(to_jsonable(payload), output_path)
     return payload
+
+
+def _import_3dspeaker(repo_path: str | Path | None = None):
+    candidates = []
+    explicit = repo_path or os.getenv("THREED_SPEAKER_REPO") or os.getenv("SPEAKERLAB_REPO")
+    if explicit:
+        candidates.append(Path(explicit))
+    for candidate in candidates:
+        if candidate.exists():
+            sys.path.insert(0, str(candidate.resolve()))
+    try:
+        from speakerlab.bin.infer_diarization import Diarization3Dspeaker
+
+        return Diarization3Dspeaker
+    except Exception as exc:
+        raise DependencyError(
+            "3D-Speaker backend requires the ModelScope 3D-Speaker repository and dependencies. "
+            "Clone https://github.com/modelscope/3D-Speaker, install its requirements, then set "
+            "THREED_SPEAKER_REPO to that repository path."
+        ) from exc
+
+
+def _segments_from_3dspeaker_json(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, dict):
+        source = payload.values()
+    elif isinstance(payload, list):
+        source = payload
+    else:
+        source = []
+
+    segments = []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        start = item.get("start", item.get("start_ms"))
+        end = item.get("stop", item.get("end", item.get("end_ms")))
+        speaker = item.get("speaker", item.get("speaker_id"))
+        if start is None or end is None or speaker is None:
+            continue
+        start_ms = int(float(start) * 1000) if float(start) < 10_000 else int(float(start))
+        end_ms = int(float(end) * 1000) if float(end) < 10_000 else int(float(end))
+        if end_ms <= start_ms:
+            continue
+        speaker_text = str(speaker).strip()
+        if speaker_text.isdigit():
+            speaker_text = f"SPEAKER_{int(speaker_text):02d}"
+        segments.append({"start_ms": start_ms, "end_ms": end_ms, "speaker": speaker_text})
+    return sorted(segments, key=lambda item: (item["start_ms"], item["end_ms"], item["speaker"]))
+
+
+def _diarize_3dspeaker_subprocess(
+    audio_path: str | Path,
+    output_path: str | Path,
+    python_exe: str | Path,
+    repo_path: str | Path,
+    token: str | None = None,
+    speaker_num: int | None = None,
+    include_overlap: bool = False,
+) -> dict[str, Any]:
+    repo = Path(repo_path)
+    script = repo / "speakerlab" / "bin" / "infer_diarization.py"
+    if not script.exists():
+        raise DependencyError(f"Cannot find 3D-Speaker inference script: {script}")
+
+    out_dir = Path(output_path).parent / f"{Path(output_path).stem}_3dspeaker_raw"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    command = [
+        str(python_exe),
+        str(script),
+        "--wav",
+        str(audio_path),
+        "--out_dir",
+        str(out_dir),
+        "--out_type",
+        "json",
+        "--nprocs",
+        "1",
+        "--diable_progress_bar",
+    ]
+    if speaker_num is not None:
+        command.extend(["--speaker_num", str(speaker_num)])
+    if include_overlap:
+        if not token:
+            raise DependencyError("HF_TOKEN is required for 3D-Speaker overlap detection.")
+        command.extend(["--include_overlap", "--hf_access_token", token])
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = f"{repo}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
+    completed = subprocess.run(
+        command,
+        cwd=str(repo),
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise DependencyError(
+            "3D-Speaker subprocess failed.\n"
+            f"Command: {' '.join(command)}\n"
+            f"STDOUT:\n{completed.stdout}\n"
+            f"STDERR:\n{completed.stderr}"
+        )
+
+    raw_output = out_dir / f"{Path(audio_path).stem}.json"
+    if not raw_output.exists():
+        candidates = sorted(out_dir.glob("*.json"))
+        if not candidates:
+            raise DependencyError(f"3D-Speaker did not write JSON output in {out_dir}")
+        raw_output = candidates[0]
+
+    segments = _segments_from_3dspeaker_json(load_json(raw_output))
+    payload = {
+        "skipped": False,
+        "backend": "3dspeaker",
+        "execution": "subprocess",
+        "source_audio": str(audio_path),
+        "model": "modelscope/3D-Speaker",
+        "speaker_num": speaker_num,
+        "include_overlap": include_overlap,
+        "raw_output": str(raw_output),
+        "segments": segments,
+    }
+    save_json(to_jsonable(payload), output_path)
+    return payload
+
+
+def _diarize_3dspeaker(
+    audio_path: str | Path,
+    output_path: str | Path,
+    token: str | None = None,
+    device: str = "auto",
+    speaker_num: int | None = None,
+    include_overlap: bool = False,
+    repo_path: str | Path | None = None,
+    model_cache_dir: str | Path | None = None,
+    python_exe: str | Path | None = None,
+) -> dict[str, Any]:
+    load_dotenv_if_available()
+    token = token or os.getenv("HF_TOKEN")
+    if include_overlap and not token:
+        raise DependencyError("HF_TOKEN is required for 3D-Speaker overlap detection.")
+
+    python_exe = python_exe or os.getenv("THREED_SPEAKER_PYTHON")
+    if python_exe:
+        resolved_repo = repo_path or os.getenv("THREED_SPEAKER_REPO") or os.getenv("SPEAKERLAB_REPO")
+        if not resolved_repo:
+            raise DependencyError("--threed-speaker-repo is required when using --threed-speaker-python.")
+        return _diarize_3dspeaker_subprocess(
+            audio_path,
+            output_path,
+            python_exe=python_exe,
+            repo_path=resolved_repo,
+            token=token,
+            speaker_num=speaker_num,
+            include_overlap=include_overlap,
+        )
+
+    Diarization3Dspeaker = _import_3dspeaker(repo_path=repo_path)
+    resolved_device = resolve_device(device)
+    pipeline = Diarization3Dspeaker(
+        device=resolved_device,
+        include_overlap=include_overlap,
+        hf_access_token=token,
+        speaker_num=speaker_num,
+        model_cache_dir=str(model_cache_dir) if model_cache_dir else None,
+    )
+    output = pipeline(str(audio_path), speaker_num=speaker_num)
+
+    segments = []
+    for item in output:
+        if len(item) < 3:
+            continue
+        start, end, speaker = item[:3]
+        start_ms = int(float(start) * 1000)
+        end_ms = int(float(end) * 1000)
+        if end_ms <= start_ms:
+            continue
+        speaker_id = int(speaker) if str(speaker).strip().isdigit() else speaker
+        segments.append(
+            {
+                "start_ms": start_ms,
+                "end_ms": end_ms,
+                "speaker": f"SPEAKER_{int(speaker_id):02d}"
+                if isinstance(speaker_id, int)
+                else str(speaker_id),
+            }
+        )
+
+    payload = {
+        "skipped": False,
+        "backend": "3dspeaker",
+        "source_audio": str(audio_path),
+        "model": "modelscope/3D-Speaker",
+        "speaker_num": speaker_num,
+        "include_overlap": include_overlap,
+        "segments": segments,
+        "raw_type": type(output).__name__,
+    }
+    save_json(to_jsonable(payload), output_path)
+    return payload
+
+
+def diarize(
+    audio_path: str | Path,
+    output_path: str | Path,
+    token: str | None = None,
+    model_name: str = "pyannote/speaker-diarization-community-1",
+    device: str = "auto",
+    min_speakers: int | None = None,
+    max_speakers: int | None = None,
+    backend: str = "pyannote",
+    speaker_num: int | None = None,
+    include_overlap: bool = False,
+    repo_path: str | Path | None = None,
+    model_cache_dir: str | Path | None = None,
+    python_exe: str | Path | None = None,
+) -> dict[str, Any]:
+    if backend == "pyannote":
+        return _diarize_pyannote(
+            audio_path,
+            output_path,
+            token=token,
+            model_name=model_name,
+            device=device,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
+        )
+    if backend == "3dspeaker":
+        inferred_speaker_num = speaker_num
+        if inferred_speaker_num is None and min_speakers is not None and min_speakers == max_speakers:
+            inferred_speaker_num = min_speakers
+        return _diarize_3dspeaker(
+            audio_path,
+            output_path,
+            token=token,
+            device=device,
+            speaker_num=inferred_speaker_num,
+            include_overlap=include_overlap,
+            repo_path=repo_path,
+            model_cache_dir=model_cache_dir,
+            python_exe=python_exe,
+        )
+    raise ValueError("backend must be one of: pyannote, 3dspeaker")

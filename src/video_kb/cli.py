@@ -44,6 +44,12 @@ def cmd_diarize(args: argparse.Namespace) -> None:
         device=args.device,
         min_speakers=args.min_speakers,
         max_speakers=args.max_speakers,
+        backend=args.backend,
+        speaker_num=args.speaker_num,
+        include_overlap=args.include_overlap,
+        repo_path=args.threed_speaker_repo,
+        model_cache_dir=args.model_cache_dir,
+        python_exe=args.threed_speaker_python,
     )
     print(json.dumps({"segments": len(payload["segments"]), "output": args.output}, ensure_ascii=False))
 
@@ -200,6 +206,12 @@ def cmd_run(args: argparse.Namespace) -> None:
                 device=args.device,
                 min_speakers=args.min_speakers,
                 max_speakers=args.max_speakers,
+                backend=args.diarization_backend,
+                speaker_num=args.speaker_num,
+                include_overlap=args.include_overlap,
+                repo_path=args.threed_speaker_repo,
+                model_cache_dir=args.diarization_model_cache_dir,
+                python_exe=args.threed_speaker_python,
             )
             if not args.no_clean_diarization:
                 clean_diarization(
@@ -285,14 +297,20 @@ def build_parser() -> argparse.ArgumentParser:
     asr.add_argument("--batch-size-s", type=int, default=60)
     asr.set_defaults(func=cmd_asr)
 
-    diar = subparsers.add_parser("diarize", help="Run pyannote speaker diarization.")
+    diar = subparsers.add_parser("diarize", help="Run speaker diarization.")
     diar.add_argument("audio")
     diar.add_argument("output")
+    diar.add_argument("--backend", choices=["pyannote", "3dspeaker"], default="pyannote")
     diar.add_argument("--token")
     diar.add_argument("--model", default="pyannote/speaker-diarization-community-1")
     diar.add_argument("--device", default="auto")
     diar.add_argument("--min-speakers", type=int)
     diar.add_argument("--max-speakers", type=int)
+    diar.add_argument("--speaker-num", type=int, help="Exact speaker count for 3D-Speaker.")
+    diar.add_argument("--include-overlap", action="store_true", help="Enable 3D-Speaker overlap detection.")
+    diar.add_argument("--threed-speaker-repo", help="Path to a cloned modelscope/3D-Speaker repository.")
+    diar.add_argument("--threed-speaker-python", help="Python executable from an isolated 3D-Speaker environment.")
+    diar.add_argument("--model-cache-dir", help="Model cache directory for 3D-Speaker.")
     diar.set_defaults(func=cmd_diarize)
 
     clean_diar = subparsers.add_parser("clean-diarization", help="Clean diarization fragments before timeline merge.")
@@ -366,9 +384,15 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--skip-diarization", action="store_true")
     run.add_argument("--require-diarization", action="store_true")
     run.add_argument("--hf-token")
+    run.add_argument("--diarization-backend", choices=["pyannote", "3dspeaker"], default="pyannote")
     run.add_argument("--diarization-model", default="pyannote/speaker-diarization-community-1")
     run.add_argument("--min-speakers", type=int)
     run.add_argument("--max-speakers", type=int)
+    run.add_argument("--speaker-num", type=int, help="Exact speaker count for 3D-Speaker.")
+    run.add_argument("--include-overlap", action="store_true", help="Enable 3D-Speaker overlap detection.")
+    run.add_argument("--threed-speaker-repo", help="Path to a cloned modelscope/3D-Speaker repository.")
+    run.add_argument("--threed-speaker-python", help="Python executable from an isolated 3D-Speaker environment.")
+    run.add_argument("--diarization-model-cache-dir", help="Model cache directory for 3D-Speaker.")
     run.add_argument("--no-clean-diarization", action="store_true")
     run.add_argument("--clean-min-segment-ms", type=int, default=800)
     run.add_argument("--clean-merge-gap-ms", type=int, default=500)
