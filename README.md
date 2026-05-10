@@ -27,12 +27,13 @@ Copy-Item .env.example .env
 data/input/demo.mp4
 ```
 
+默认情况下，`run_id` 会自动使用输入文件名去掉扩展名后的部分。比如 `demo.mp4` 会输出到 `data/runs/demo/`，所以日常只需要修改 `--input`。
+
 运行完整链路：
 
 ```powershell
 python -m video_kb.cli run `
   --input .\data\input\demo.mp4 `
-  --run-id demo `
   --device cuda:0 `
   --summary-engine llm `
   --embedding-provider hash `

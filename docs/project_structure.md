@@ -44,6 +44,7 @@
     │   └── sample_timeline.json
     ├── test_diarization.py
     ├── test_kb.py
+    ├── test_paths.py
     ├── test_reports.py
     ├── test_summarize.py
     └── test_timeline.py

@@ -353,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = subparsers.add_parser("run", help="Run the full pipeline.")
     run.add_argument("--input", required=True)
-    run.add_argument("--run-id")
+    run.add_argument("--run-id", help="Output run id. Defaults to the input file name without extension.")
     run.add_argument("--data-dir", default="data")
     run.add_argument("--ffmpeg", default="ffmpeg")
     run.add_argument("--sample-rate", type=int, default=16000)

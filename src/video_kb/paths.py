@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
 from .utils import slugify
@@ -25,8 +24,7 @@ class RunPaths:
     ) -> "RunPaths":
         source = Path(input_path)
         if run_id is None:
-            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            run_id = f"{source.stem}_{stamp}"
+            run_id = source.stem
         return cls(data_dir=Path(data_dir), run_id=slugify(run_id))
 
     @property

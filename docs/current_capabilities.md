@@ -20,6 +20,8 @@ PowerShell 中如果 `ffmpeg` 不在 PATH，可在运行时显式传入：
 --ffmpeg D:\Programs\anaconda3\envs\cn-video-kb\Library\bin\ffmpeg.exe
 ```
 
+完整 `run` 默认使用输入文件名作为 `run_id`。例如 `data/input/demo.mp4` 会输出到 `data/runs/demo/`；只有需要自定义输出目录时才传 `--run-id`。
+
 ## 当前能力
 
 | 能力 | 实现文件 | 输出 |

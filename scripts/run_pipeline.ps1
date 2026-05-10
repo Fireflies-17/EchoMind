@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$InputVideo,
+  # Optional override. By default the run id is the input file name without extension.
   [string]$RunId = ""
 )
 
@@ -13,4 +14,3 @@ if ($RunId) {
 } else {
   python -m video_kb.cli run --input $InputVideo
 }
-

@@ -43,7 +43,6 @@ data/runs/<run_id>/diarization/<run_id>_speakers.json
 ```powershell
 python -m video_kb.cli run `
   --input .\data\input\demo.mp4 `
-  --run-id demo_clean `
   --device cuda:0 `
   --summary-engine llm `
   --embedding-provider hash `
