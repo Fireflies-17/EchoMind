@@ -1,0 +1,33 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Python caches and virtual environments
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Local input media and generated pipeline outputs
+data/input/*
+!data/input/.gitkeep
+data/runs/
+data/vector_db/
+data/audio/
+data/transcript/
+data/diarization/
+data/summary/
+
+# Local model or vector store caches
+models/
+.cache/

@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cn-video-knowledge"
+version = "0.1.0"
+description = "Local video transcription, diarization, summarization, and Qdrant knowledge base."
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+  "numpy>=1.24",
+  "python-dotenv>=1.0",
+  "requests>=2.31",
+  "soundfile>=0.12",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+speech = [
+  "funasr>=1.2.0",
+  "modelscope>=1.18.0",
+  "torch>=2.1",
+  "torchaudio>=2.1",
+  "pyannote.audio>=3.3.0",
+]
+kb = [
+  "qdrant-client>=1.17.0",
+  "sentence-transformers>=3.0.0",
+]
+all = [
+  "funasr>=1.2.0",
+  "modelscope>=1.18.0",
+  "torch>=2.1",
+  "torchaudio>=2.1",
+  "pyannote.audio>=3.3.0",
+  "qdrant-client>=1.17.0",
+  "sentence-transformers>=3.0.0",
+]
+
+[project.scripts]
+video-kb = "video_kb.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
